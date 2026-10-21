@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14b8a6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="جدول الحمى">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>جدول الحمى - Fever Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['Tajawal','system-ui','sans-serif']}}}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font-family:'Tajawal',system-ui,sans-serif}
+input[type=range]{accent-color:#10b981}
+@media print{.noprint{display:none!important}.fixed{position:static!important}}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.pop{animation:pop .3s ease both}
+</style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950">
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useMemo}=React;
+const H=3600000,M=60000;
+const fa=(n,d=0)=>Number(n).toLocaleString('ar-EG',{minimumFractionDigits:d,maximumFractionDigits:d});
+const P={thermo:"M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z",plus:"M5 12h14M12 5v14",moon:"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z",sun:"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z",file:"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2ZM14 2v6h6M16 13H8M16 17H8M10 9H8",trash:"M3 6h18M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2",pencil:"M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z",x:"M18 6 6 18M6 6l12 12",alert:"M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0ZM12 9v4M12 17h.01",clock:"M12 6v6l4 2M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z",pill:"m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7ZM8.5 8.5l7 7",pulse:"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7ZM3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27",check:"M20 6 9 17l-5-5",minus:"M5 12h14"};
+const I=({n,c="w-5 h-5"})=><svg className={c} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={P[n]}/></svg>;
+const SITES=[{k:'ear',n:'الأذن',e:'👂'},{k:'arm',n:'تحت الإبط',e:'💪'},{k:'mouth',n:'الفم',e:'👄'},{k:'fore',n:'الجبهة',e:'🙂'},{k:'rect',n:'الشرج',e:'🌡️'}];
+const SYMS=['خمول','تقرحات فم','سيلان أنف','قيء','إسهال','طفح جلدي','كحة','ألم مفاصل'];
+const MEDS={'باراسيتامول':4,'إيبوبروفين':6,'أخرى':0};
+const ST=t=>t<37.5?{n:'طبيعي',b:'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',hex:'#10b981',g:'from-emerald-400 to-teal-500'}:t<38.5?{n:'مرتفع قليلاً',b:'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',hex:'#f59e0b',g:'from-amber-400 to-orange-500'}:{n:'حمى مرتفعة',b:'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',hex:'#f43f5e',g:'from-rose-400 to-red-500'};
+const dur=ms=>{const m=Math.max(0,Math.round(ms/M)),h=Math.floor(m/60),r=m%60;return [h?`${fa(h)} ساعة`:'',r?`${fa(r)} دقيقة`:''].filter(Boolean).join(' و ')||'أقل من دقيقة'};
+const ago=ms=>ms<M?'الآن':'منذ '+dur(ms);
+const tm=t=>new Date(t).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
+const dy=t=>new Date(t).toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long'});
+const siteOf=k=>SITES.find(s=>s.k===k)||SITES[0];
+const seed=(arr)=>{const n=Date.now();return arr.map(([h,temp,site,symptoms,med],i)=>({id:i+1+Math.random(),t:n-h*H,temp,site,symptoms,med}))};
+const loadKids=()=>{try{const x=JSON.parse(localStorage.getItem('fever-kids'));if(x&&x.length)return x}catch(e){}return initKids()};
+const initKids=()=>[
+{id:1,name:'أحمد',age:'3 سنوات',r:seed([[.75,38.7,'ear',['خمول','سيلان أنف'],null],[1.75,39.1,'ear',['خمول','كحة'],{type:'باراسيتامول',dose:5,unit:'ml'}],[6,38.4,'arm',['سيلان أنف'],null],[10,38.9,'ear',['خمول','قيء'],{type:'إيبوبروفين',dose:4,unit:'ml'}],[15,37.8,'fore',['كحة'],null],[22,38.3,'ear',['سيلان أنف'],null],[30,38.8,'ear',['خمول','ألم مفاصل'],{type:'باراسيتامول',dose:5,unit:'ml'}],[38,39.0,'arm',['خمول','قيء'],null],[46,38.2,'ear',['كحة'],null],[54,37.6,'fore',[],null],[62,38.5,'ear',['سيلان أنف'],{type:'إيبوبروفين',dose:4,unit:'ml'}]])},
+{id:2,name:'سارة',age:'سنة واحدة',r:seed([[3,36.9,'arm',[],null],[20,37.2,'ear',['سيلان أنف'],null],[40,36.8,'fore',[],null]])}];
+
+function Chart({rs}){
+  const [rng,setRng]=useState(24);const [sel,setSel]=useState(null);
+  const now=Date.now(),start=now-(rng===24?24:168)*H;
+  const d=rs.filter(r=>r.t>=start).sort((a,b)=>a.t-b.t);
+  const W=340,Hh=190,l=30,rt=10,t0=10,b=22,y0=36,y1=41;
+  const y=v=>t0+(y1-v)/(y1-y0)*(Hh-t0-b),x=t=>l+(t-start)/(now-start)*(W-l-rt);
+  const pts=d.map(r=>`${x(r.t)},${y(r.temp)}`).join(' ');
+  const s=d.find(r=>r.id===sel);
+  return <div className="rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800 p-4">
+    <div className="flex items-center justify-between mb-3"><h2 className="font-bold">مخطط الحرارة</h2>
+      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1 text-sm">{[[24,'٢٤ ساعة'],[168,'٧ أيام']].map(([v,n])=><button key={v} onClick={()=>{setRng(v);setSel(null)}} className={`px-3 py-1 rounded-lg transition ${rng===v?'bg-white dark:bg-slate-700 shadow-sm font-bold':'text-slate-500'}`}>{n}</button>)}</div></div>
+    <div dir="ltr"><svg viewBox={`0 0 ${W} ${Hh}`} className="w-full">
+      <rect x={l} y={y(37.5)} width={W-l-rt} height={y(36)-y(37.5)} fill="#10b981" opacity=".15"/>
+      <rect x={l} y={y(38.5)} width={W-l-rt} height={y(37.5)-y(38.5)} fill="#f59e0b" opacity=".15"/>
+      <rect x={l} y={y(41)} width={W-l-rt} height={y(38.5)-y(41)} fill="#f43f5e" opacity=".15"/>
+      {[36,37,38,39,40,41].map(v=><g key={v}><text x={l-4} y={y(v)+3} textAnchor="end" fontSize="9" className="fill-slate-400">{v}</text></g>)}
+      {[0,.5,1].map(f=><text key={f} x={l+f*(W-l-rt)} y={Hh-6} textAnchor={f===0?'start':f===1?'end':'middle'} fontSize="9" className="fill-slate-400">{tm(start+f*(now-start))}</text>)}
+      {d.length>1&&<polyline points={pts} fill="none" stroke="#64748b" strokeWidth="2" strokeLinejoin="round"/>}
+      {d.map(r=><g key={r.id} onClick={()=>setSel(r.id)} className="cursor-pointer">
+        {r.med&&<circle cx={x(r.t)} cy={y(r.temp)} r="9" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeDasharray="3 2"/>}
+        <circle cx={x(r.t)} cy={y(r.temp)} r={sel===r.id?7:5} fill={ST(r.temp).hex} stroke="white" strokeWidth="2"/></g>)}
+    </svg></div>
+    <div className="min-h-[52px] mt-2 text-sm">{s?<div className="pop flex items-center gap-2 flex-wrap rounded-xl bg-slate-50 dark:bg-slate-800 p-3"><b className="text-lg">{fa(s.temp,1)}°</b><span className={`px-2 py-0.5 rounded-full text-xs ${ST(s.temp).b}`}>{ST(s.temp).n}</span><span className="text-slate-500">{dy(s.t)} · {tm(s.t)}</span>{s.med&&<span className="px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">💊 {s.med.type} {fa(s.med.dose)} {s.med.unit}</span>}</div>:<p className="text-slate-400 text-center pt-3">اضغط على أي نقطة لعرض التفاصيل · الدائرة المنقطة = جرعة دواء</p>}</div>
+  </div>;
+}
+
+function Sheet({open,onClose,onSave,edit}){
+  const [u,setU]=useState('C'),[v,setV]=useState(38),[site,setSite]=useState('ear'),[sy,setSy]=useState([]),[med,setMed]=useState(false),[mt,setMt]=useState('باراسيتامول'),[dose,setDose]=useState(5),[du,setDu]=useState('ml'),[mtime,setMtime]=useState(''),[busy,setBusy]=useState(false);
+  const hm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+  useEffect(()=>{if(!open)return;setU('C');setBusy(false);
+    if(edit){setV(edit.temp);setSite(edit.site);setSy(edit.symptoms);setMed(!!edit.med);if(edit.med){setMt(edit.med.type);setDose(edit.med.dose);setDu(edit.med.unit);setMtime(hm(edit.t))}else setMtime(hm(Date.now()))}
+    else{setV(38);setSite('ear');setSy([]);setMed(false);setMt('باراسيتامول');setDose(5);setDu('ml');setMtime(hm(Date.now()))}},[open,edit]);
+  const flip=()=>{if(u==='C'){setV(+(v*9/5+32).toFixed(1));setU('F')}else{setV(+((v-32)*5/9).toFixed(1));setU('C')}};
+  const step=d=>setV(+(v+d).toFixed(1));
+  const tc=u==='C'?v:+((v-32)*5/9).toFixed(1);
+  const bad=tc<34||tc>43;
+  const save=()=>{setBusy(true);setTimeout(()=>{
+    let t=edit?edit.t:Date.now();
+    if(med&&mtime){const [h,m]=mtime.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);if(d.getTime()>Date.now())d.setDate(d.getDate()-1);t=d.getTime()}
+    onSave({id:edit?edit.id:Math.random(),t,temp:tc,site,symptoms:sy,med:med?{type:mt,dose:+dose,unit:du}:null})},700)};
+  const st=ST(tc);
+  return <div className={`fixed inset-0 z-40 ${open?'':'pointer-events-none'}`}>
+    <div onClick={onClose} className={`absolute inset-0 bg-slate-900/50 transition-opacity duration-300 ${open?'opacity-100':'opacity-0'}`}/>
+    <div className={`absolute bottom-0 inset-x-0 max-w-lg mx-auto bg-white dark:bg-slate-900 rounded-t-3xl p-5 max-h-[92vh] overflow-y-auto transition-transform duration-300 ${open?'translate-y-0':'translate-y-full'}`} style={{paddingBottom:'calc(1.25rem + env(safe-area-inset-bottom,0px))'}}>
+      <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-extrabold">{edit?'تعديل القراءة':'إضافة قراءة جديدة'}</h3><button onClick={onClose} className="p-2 rounded-full bg-slate-100 dark:bg-slate-800"><I n="x"/></button></div>
+      <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 text-center">
+        <div className="flex items-center justify-center gap-4">
+          <button onClick={()=>step(.1)} className="w-12 h-12 rounded-full bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center active:scale-90 transition"><I n="plus"/></button>
+          <div className="w-36"><div className="text-5xl font-extrabold" style={{color:st.hex}} dir="ltr">{fa(v,1)}°{u==='C'?'م':'ف'}</div></div>
+          <button onClick={()=>step(-.1)} className="w-12 h-12 rounded-full bg-white dark:bg-slate-700 shadow-sm flex items-center justify-center active:scale-90 transition"><I n="minus"/></button>
+        </div>
+        <input type="range" dir="ltr" className="w-full mt-3" min={u==='C'?35:95} max={u==='C'?42:108} step=".1" value={v} onChange={e=>setV(+e.target.value)}/>
+        <div className="flex items-center justify-between mt-1"><span className={`px-2 py-0.5 rounded-full text-xs ${st.b}`}>{st.n}</span><button onClick={flip} className="text-sm font-bold px-3 py-1 rounded-lg bg-white dark:bg-slate-700 shadow-sm">التحويل إلى {u==='C'?'°F':'°C'}</button></div>
+      </div>
+      <p className="font-bold mt-4 mb-2 text-sm">مكان القياس</p>
+      <div className="grid grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">{SITES.map(s=><button key={s.k} onClick={()=>setSite(s.k)} className={`py-2 rounded-xl text-center transition ${site===s.k?'bg-white dark:bg-slate-700 shadow-sm':'opacity-70'}`}><div className="text-xl">{s.e}</div><div className="text-[11px] font-medium">{s.n}</div></button>)}</div>
+      <p className="font-bold mt-4 mb-2 text-sm">الأعراض</p>
+      <div className="flex flex-wrap gap-2">{SYMS.map(s=>{const on=sy.includes(s);return <button key={s} onClick={()=>setSy(on?sy.filter(x=>x!==s):[...sy,s])} className={`px-3 py-1.5 rounded-full text-sm border transition ${on?'bg-teal-500 border-teal-500 text-white':'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>{on&&'✓ '}{s}</button>})}</div>
+      <div className="flex items-center justify-between mt-4 rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><span className="font-bold text-sm">تم إعطاء خافض حرارة؟</span>
+        <button onClick={()=>setMed(!med)} className={`w-12 h-7 rounded-full p-1 transition ${med?'bg-violet-500':'bg-slate-300 dark:bg-slate-600'}`} dir="ltr"><span className={`block w-5 h-5 rounded-full bg-white transition-transform ${med?'translate-x-5':''}`}/></button></div>
+      {med&&<div className="pop grid grid-cols-2 gap-2 mt-2">
+        <select value={mt} onChange={e=>setMt(e.target.value)} className="col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">{Object.keys(MEDS).map(m=><option key={m}>{m}</option>)}</select>
+        <div className="flex gap-1"><input type="number" min="0" value={dose} onChange={e=>setDose(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3" dir="ltr"/><select value={du} onChange={e=>setDu(e.target.value)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2"><option>ml</option><option>mg</option></select></div>
+        <input type="time" value={mtime} onChange={e=>setMtime(e.target.value)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3" dir="ltr"/></div>}
+      {bad&&<p className="text-rose-500 text-sm mt-3">تأكد من القيمة المُدخلة، تبدو خارج النطاق المعقول.</p>}
+      <button disabled={busy||bad} onClick={save} className="mt-5 w-full py-3.5 rounded-2xl bg-gradient-to-l from-teal-500 to-emerald-500 text-white font-extrabold shadow-sm disabled:opacity-60 flex items-center justify-center gap-2 active:scale-[.98] transition">{busy?<><span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin"/>جارٍ الحفظ...</>:'حفظ القراءة'}</button>
+    </div></div>;
+}
+
+function Modal({open,onClose,title,children}){
+  return <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition ${open?'':'pointer-events-none opacity-0'}`}>
+    <div onClick={onClose} className="absolute inset-0 bg-slate-900/50 noprint"/>
+    <div className={`relative w-full max-w-md max-h-[88vh] overflow-y-auto bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl transition-transform duration-300 ${open?'scale-100':'scale-95'}`}>
+      <div className="flex items-center justify-between mb-3"><h3 className="text-lg font-extrabold">{title}</h3><button onClick={onClose} className="noprint p-2 rounded-full bg-slate-100 dark:bg-slate-800"><I n="x"/></button></div>{children}</div></div>;
+}
+
+function App(){
+  const [dark,setDark]=useState(()=>{let v=null;try{v=localStorage.getItem('fever-dark')}catch(e){}return v!==null?v==='1':!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)});
+  const [kids,setKids]=useState(loadKids),[kid,setKid]=useState(()=>{let v=0;try{v=+localStorage.getItem('fever-kid')}catch(e){}return kids.some(c=>c.id===v)?v:kids[0].id}),[now,setNow]=useState(Date.now());
+  const [sheet,setSheet]=useState(false),[edit,setEdit]=useState(null),[rep,setRep]=useState(false),[er,setEr]=useState(false),[addK,setAddK]=useState(false),[nn,setNn]=useState(''),[na,setNa]=useState(''),[ek,setEk]=useState(null),[delK,setDelK]=useState(false);
+  useEffect(()=>{try{localStorage.setItem('fever-dark',dark?'1':'0')}catch(e){}document.documentElement.classList.toggle('dark',dark);document.body.className=dark?'bg-slate-950':'bg-slate-50'},[dark]);
+  useEffect(()=>{try{localStorage.setItem('fever-kids',JSON.stringify(kids));localStorage.setItem('fever-kid',String(kid))}catch(e){}},[kids,kid]);
+  useEffect(()=>{const i=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(i)},[]);
+  const k=kids.find(x=>x.id===kid);
+  const rs=useMemo(()=>[...k.r].sort((a,b)=>b.t-a.t),[k]);
+  const last=rs[0];
+  const upd=f=>setKids(ks=>ks.map(x=>x.id===kid?{...x,r:f(x.r)}:x));
+  const lastMed=rs.find(r=>r.med&&MEDS[r.med.type]>0);
+  const rem=lastMed?lastMed.t+MEDS[lastMed.med.type]*H-now:null;
+  const total=lastMed?MEDS[lastMed.med.type]*H:1;
+  const feverDays=[0,1,2].every(i=>{const s=new Date();s.setHours(0,0,0,0);const a=s.getTime()-i*24*H,e=a+24*H;return rs.some(r=>r.t>=a&&r.t<e&&r.temp>=37.5)});
+  const flag=last&&(last.temp>=39||feverDays);
+  const groups=[];rs.forEach(r=>{const d=dy(r.t);let g=groups.find(x=>x.d===d);if(!g){g={d,items:[]};groups.push(g)}g.items.push(r)});
+  const r48=rs.filter(r=>r.t>=now-48*H);
+  const peak=r48.length?Math.max(...r48.map(r=>r.temp)):0,low=r48.length?Math.min(...r48.map(r=>r.temp)):0;
+  const doses=r48.filter(r=>r.med).length;
+  const sc={};r48.forEach(r=>r.symptoms.forEach(s=>sc[s]=(sc[s]||0)+1));
+  const save=r=>{upd(a=>a.some(x=>x.id===r.id)?a.map(x=>x.id===r.id?r:x):[...a,r]);setSheet(false)};
+  const card="rounded-2xl bg-white dark:bg-slate-900 shadow-sm border border-slate-100 dark:border-slate-800";
+  const s=last&&ST(last.temp);
+  return <div className="min-h-screen font-sans text-slate-800 dark:text-slate-100 max-w-lg mx-auto px-4 pb-28" dir="rtl">
+    <div className="noprint">
+    <header className="pt-4 pb-3 sticky top-0 z-30 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2"><span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-teal-400 to-emerald-500 text-white flex items-center justify-center"><I n="pulse"/></span><div><h1 className="font-extrabold text-lg leading-tight">جدول الحمى</h1><p className="text-xs text-slate-400" dir="ltr">Fever Tracker</p></div></div>
+        <div className="flex gap-2"><button onClick={()=>setRep(true)} aria-label="تقرير" className={`${card} p-2.5`}><I n="file"/></button><button onClick={()=>setDark(!dark)} aria-label="الوضع" className={`${card} p-2.5`}><I n={dark?'sun':'moon'}/></button></div>
+      </div>
+      <div className="flex gap-2 mt-3 overflow-x-auto pb-1">{kids.map(c=><button key={c.id} onClick={()=>setKid(c.id)} className={`shrink-0 flex items-center gap-2 pl-4 pr-1.5 py-1.5 rounded-full border transition ${kid===c.id?'bg-teal-500 border-teal-500 text-white shadow-sm':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}><span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${kid===c.id?'bg-white/25':'bg-teal-100 text-teal-700'}`}>{c.name[0]}</span><span className="text-sm font-medium">{c.name} ({c.age})</span></button>)}
+        <button onClick={()=>{setEk(null);setNn('');setNa('');setAddK(true)}} className="shrink-0 px-4 py-2 rounded-full border border-dashed border-slate-300 dark:border-slate-600 text-sm text-slate-500">إضافة طفل +</button></div>
+      <div className="flex gap-2 mt-2 text-xs"><button onClick={()=>{setEk(k.id);setNn(k.name);setNa(k.age==='—'?'':k.age);setAddK(true)}} className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"><I n="pencil" c="w-3.5 h-3.5"/>تعديل ملف {k.name}</button><button disabled={kids.length<2} onClick={()=>setDelK(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 disabled:opacity-40"><I n="trash" c="w-3.5 h-3.5"/>حذف الملف</button></div>
+    </header>
+
+    <main className="space-y-4 mt-2">
+      {last?<section className={`${card} overflow-hidden pop`}>
+        <div className={`bg-gradient-to-l ${s.g} text-white p-5`}>
+          <p className="text-sm opacity-90">الحالة الحالية · {k.name}</p>
+          <div className="flex items-end justify-between mt-1"><div className="text-6xl font-extrabold" dir="ltr">{fa(last.temp,1)}°</div>
+            <div className="text-left"><span className="inline-block bg-white/25 rounded-full px-3 py-1 text-sm font-bold">{s.n}</span><p className="text-sm mt-2 flex items-center gap-1 justify-end"><I n="clock" c="w-4 h-4"/>{ago(now-last.t)}</p></div></div></div>
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-2"><span className="w-8 h-8 rounded-xl bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-300 flex items-center justify-center"><I n="pill" c="w-4 h-4"/></span><span className="font-bold text-sm">مؤقت الجرعة القادمة</span></div>
+          {lastMed?(rem>0?<><p className="text-sm">الجرعة القادمة من {lastMed.med.type} بعد <b>{dur(rem)}</b></p><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 mt-2 overflow-hidden"><div className="h-full bg-violet-500 transition-all" style={{width:`${Math.min(100,(1-rem/total)*100)}%`}}/></div></>:<p className="text-sm text-emerald-600 dark:text-emerald-400 font-bold">يمكن إعطاء الجرعة التالية الآن (حسب توجيه الطبيب)</p>):<p className="text-sm text-slate-500">لم يتم تسجيل أي خافض حرارة بعد.</p>}
+        </div></section>:<div className={`${card} p-8 text-center text-slate-400`}>لا توجد قراءات بعد، اضغط + لإضافة أول قراءة.</div>}
+
+      {flag&&<section className="pop rounded-2xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 p-4 flex gap-3"><span className="text-rose-500 shrink-0"><I n="alert" c="w-6 h-6"/></span><div><p className="font-extrabold text-rose-700 dark:text-rose-300">تنبيه هام</p><p className="text-sm text-rose-700/90 dark:text-rose-200 mt-0.5">{last.temp>=39?'درجة الحرارة وصلت ٣٩° أو أكثر. ':''}{feverDays?'الحمى مستمرة لأكثر من ٣ أيام. ':''}يُنصح بمراجعة الطبيب.</p><button onClick={()=>setEr(true)} className="mt-2 text-sm font-bold underline text-rose-700 dark:text-rose-300">متى تذهب للطوارئ؟</button></div></section>}
+
+      <Chart key={kid} rs={k.r}/>
+
+      <section>
+        <h2 className="font-bold mb-2">سجل النوبات</h2>
+        <div className="space-y-4">{groups.map(g=><div key={g.d}><p className="text-xs font-bold text-slate-400 mb-2">{g.d}</p><div className="space-y-2">{g.items.map(r=>{const c=ST(r.temp);return <article key={r.id} className={`${card} p-3 pop`}>
+          <div className="flex items-center gap-3"><span className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xl">{siteOf(r.site).e}</span>
+            <div className="flex-1"><div className="flex items-center gap-2"><b className="text-lg" style={{color:c.hex}}>{fa(r.temp,1)}°</b><span className={`px-2 py-0.5 rounded-full text-xs ${c.b}`}>{c.n}</span></div><p className="text-xs text-slate-400">{tm(r.t)} · {siteOf(r.site).n}</p></div>
+            <button onClick={()=>{setEdit(r);setSheet(true)}} aria-label="تعديل" className="p-2 text-slate-400 hover:text-teal-500"><I n="pencil" c="w-4 h-4"/></button>
+            <button onClick={()=>upd(a=>a.filter(x=>x.id!==r.id))} aria-label="حذف" className="p-2 text-slate-400 hover:text-rose-500"><I n="trash" c="w-4 h-4"/></button></div>
+          {(r.symptoms.length>0||r.med)&&<div className="flex flex-wrap gap-1.5 mt-2">{r.symptoms.map(x=><span key={x} className="px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{x}</span>)}{r.med&&<span className="px-2 py-0.5 rounded-full text-xs bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">💊 {r.med.type} {fa(r.med.dose)} {r.med.unit}</span>}</div>}
+        </article>})}</div></div>)}</div>
+      </section>
+    </main>
+
+    <button onClick={()=>{setEdit(null);setSheet(true)}} className="fixed z-30 left-5 flex items-center gap-2 px-5 py-3.5 rounded-full bg-gradient-to-l from-teal-500 to-emerald-500 text-white font-extrabold shadow-lg active:scale-95 transition" style={{bottom:'calc(1.25rem + env(safe-area-inset-bottom,0px))'}}><I n="plus"/>إضافة قراءة</button>
+    </div>
+
+    <Sheet open={sheet} onClose={()=>setSheet(false)} onSave={save} edit={edit}/>
+
+    <Modal open={rep} onClose={()=>setRep(false)} title={`تقرير الطبيب · ${k.name}`}>
+      <p className="text-xs text-slate-400 mb-3">آخر ٤٨ ساعة · {dy(now)}</p>
+      <div className="grid grid-cols-2 gap-2">{[['أعلى درجة',r48.length?fa(peak,1)+'°':'—'],['نطاق الحرارة',r48.length?`${fa(low,1)} – ${fa(peak,1)}`:'—'],['عدد الجرعات',fa(doses)],['عدد القراءات',fa(r48.length)]].map(([a,b])=><div key={a} className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-3"><p className="text-xs text-slate-500">{a}</p><p className="text-xl font-extrabold mt-1">{b}</p></div>)}</div>
+      <p className="font-bold mt-4 mb-2 text-sm">الأعراض المسجلة</p>
+      <div className="flex flex-wrap gap-2">{Object.keys(sc).length?Object.entries(sc).map(([a,n])=><span key={a} className="px-3 py-1 rounded-full text-sm bg-teal-50 dark:bg-teal-500/15 text-teal-700 dark:text-teal-300">{a} ({fa(n)})</span>):<span className="text-sm text-slate-400">لا يوجد</span>}</div>
+      <p className="font-bold mt-4 mb-2 text-sm">الأدوية المعطاة</p>
+      <ul className="text-sm space-y-1">{r48.filter(r=>r.med).map(r=><li key={r.id}>• {r.med.type} {fa(r.med.dose)} {r.med.unit} — {tm(r.t)}</li>)}{doses===0&&<li className="text-slate-400">لا يوجد</li>}</ul>
+      <button onClick={()=>window.print()} className="noprint mt-5 w-full py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold flex items-center justify-center gap-2"><I n="file"/>طباعة / حفظ PDF</button>
+    </Modal>
+
+    <Modal open={er} onClose={()=>setEr(false)} title="متى تذهب للطوارئ؟">
+      <ul className="space-y-2 text-sm">{['رضيع أقل من ٣ أشهر وحرارته ٣٨° أو أكثر','حرارة أعلى من ٤٠° أو لا تنخفض بعد الدواء','تشنجات أو إغماء','صعوبة في التنفس أو ازرقاق الشفاه','رفض الشرب أو علامات جفاف (قلة التبول)','طفح جلدي لا يختفي بالضغط، أو تيبّس الرقبة','خمول شديد أو صعوبة في الاستيقاظ','استمرار الحمى أكثر من ٣ أيام'].map(x=><li key={x} className="flex gap-2"><span className="text-rose-500"><I n="alert" c="w-4 h-4"/></span>{x}</li>)}</ul>
+      <p className="text-xs text-slate-400 mt-4">هذه معلومات عامة وليست بديلاً عن استشارة الطبيب.</p>
+    </Modal>
+
+    <Modal open={delK} onClose={()=>setDelK(false)} title="حذف الملف؟">
+      <p className="text-sm text-slate-600 dark:text-slate-300">سيتم حذف ملف <b>{k.name}</b> وجميع قراءاته نهائيًا ولا يمكن التراجع.</p>
+      <div className="flex gap-2 mt-4"><button onClick={()=>setDelK(false)} className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 font-bold">إلغاء</button><button onClick={()=>{const rest=kids.filter(c=>c.id!==kid);if(rest.length){setKids(rest);setKid(rest[0].id)}setDelK(false)}} className="flex-1 py-3 rounded-2xl bg-rose-500 text-white font-bold">حذف</button></div>
+    </Modal>
+
+    <Modal open={addK} onClose={()=>setAddK(false)} title={ek?'تعديل بيانات الطفل':'إضافة طفل'}>
+      <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="الاسم" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent p-3 mb-2"/>
+      <input value={na} onChange={e=>setNa(e.target.value)} placeholder="العمر (مثال: 5 سنوات)" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-transparent p-3"/>
+      <button disabled={!nn.trim()} onClick={()=>{if(ek){setKids(ks=>ks.map(c=>c.id===ek?{...c,name:nn.trim(),age:na.trim()||'—'}:c))}else{const id=Date.now();setKids([...kids,{id,name:nn.trim(),age:na.trim()||'—',r:[]}]);setKid(id)}setNn('');setNa('');setEk(null);setAddK(false)}} className="mt-4 w-full py-3 rounded-2xl bg-teal-500 text-white font-bold disabled:opacity-50">{ek?'حفظ التعديلات':'إضافة'}</button>
+    </Modal>
+  </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}</script>
+</body>
+</html>
